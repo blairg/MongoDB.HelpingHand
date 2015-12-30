@@ -52,7 +52,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Entities\BsonDocumentBuilder.cs" />
+    <Compile Include="Entities\Operator.cs" />
     <Compile Include="IMongoRepository.cs" />
+    <Compile Include="Implementation\MongoRepository.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
