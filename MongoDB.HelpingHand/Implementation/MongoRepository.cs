@@ -11,8 +11,8 @@ namespace MongoDB.HelpingHand.Implementation
 {
     public class MongoRepository<T> : IMongoRepository<T>
     {
-        public readonly IMongoClient _mongoClient;
-        public readonly IMongoCollection<T> _mongoCollection;
+        public IMongoClient MongoClient { get; set; }
+        public IMongoCollection<T> MongoCollection { get; set; }
 
         public MongoRepository(string server, string databaseName, string collectionName)
         {
@@ -31,11 +31,15 @@ namespace MongoDB.HelpingHand.Implementation
                 throw new ArgumentNullException(nameof(collectionName));
             }
 
-            _mongoClient = new MongoClient("mongodb://" + server);
-            var database = _mongoClient.GetDatabase(databaseName);
-            _mongoCollection = database.GetCollection<T>(collectionName);
+            MongoClient = new MongoClient("mongodb://" + server);
+            var database = MongoClient.GetDatabase(databaseName);
+            MongoCollection = database.GetCollection<T>(collectionName);
         }
 
+        /// <summary>
+        /// Gets all documents in the collection of type T.
+        /// </summary>
+        /// <returns></returns>
         public async Task<IEnumerable<T>> GetAll()
         {
             return await GetDocuments(new BsonDocument());
@@ -47,17 +51,23 @@ namespace MongoDB.HelpingHand.Implementation
         /// <param name="entries"></param>
         /// <param name="operatorValue">Must be And or Or</param>
         /// <returns></returns>
-        public async Task<IEnumerable<T>> GetMatches(IList<BsonDocumentBuilder> entries, Operator operatorValue)
+        public async Task<IEnumerable<T>> GetMatches(IList<BsonDocumentBuilder> entries, Operator operatorValue = Operator.And)
         {
-            CheckOperatorIsAndOrOr(operatorValue);
+            CheckOperatorsAreValid(entries, operatorValue);
             FilterDefinition<T> filterDefinition = BuildFilterDefinitionWithOperator(entries, operatorValue);
 
             return await GetDocuments(filterDefinition);
         }
         
+        /// <summary>
+        /// Gets the first document by it's ObjectId.
+        /// </summary>
+        /// <param name="objectId"></param>
+        /// <returns></returns>
         public async Task<T> GetFirst(string objectId)
         {
-            return await GetDocument(new BsonDocument { { "_id", objectId } });
+            ObjectId parsedObjectId = ValidateObjectId(objectId);
+            return await GetDocument(new BsonDocument { { "_id", new BsonObjectId(parsedObjectId) } });
         }
 
         /// <summary>
@@ -66,14 +76,21 @@ namespace MongoDB.HelpingHand.Implementation
         /// <param name="entries"></param>
         /// <param name="operatorValue">Must be And Or Or</param>
         /// <returns></returns>
-        public async Task<T> GetFirst(IList<BsonDocumentBuilder> entries, Operator operatorValue)
+        public async Task<T> GetFirst(IList<BsonDocumentBuilder> entries, Operator operatorValue = Operator.And)
         {
-            CheckOperatorIsAndOrOr(operatorValue);
+            CheckOperatorsAreValid(entries, operatorValue);
             FilterDefinition<T> filterDefinition = BuildFilterDefinitionWithOperator(entries, operatorValue);
 
             return await GetDocument(filterDefinition);
         }
 
+        /// <summary>
+        /// Performs a regular expression search against a single column. Case be sensitive or not.
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="sensitive">True for case-senstive and false (default) if not.</param>
+        /// <returns>List of T</returns>
         public async Task<IEnumerable<T>> Search(string key, string value, bool sensitive = false)
         {
             var bsonDocumentBuilder = new BsonDocumentBuilder
@@ -87,13 +104,13 @@ namespace MongoDB.HelpingHand.Implementation
         }
 
         /// <summary>
-        /// Inserts a document
+        /// Inserts a single document
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
         public async void Insert(T value)
         {
-            await _mongoCollection.InsertOneAsync(value);
+            await MongoCollection.InsertOneAsync(value);
         }
 
         /// <summary>
@@ -103,24 +120,25 @@ namespace MongoDB.HelpingHand.Implementation
         /// <returns></returns>
         public async void InsertBatch(IEnumerable<T> values)
         {
-            await _mongoCollection.InsertManyAsync(values);
+            await MongoCollection.InsertManyAsync(values);
         }
 
         /// <summary>
         /// Partial update of a document
         /// </summary>
-        /// <param name="id"></param>
+        /// <param name="objectId"></param>
         /// <param name="entries">List of all fields which require updating</param>
         /// <returns></returns>
-        public async Task<bool> Update(string id, IList<BsonDocumentBuilder> entries)
+        public async Task<bool> Update(string objectId, IList<BsonDocumentBuilder> entries)
         {
+            ObjectId parsedObjectId = ValidateObjectId(objectId);
             bool updated = true;
 
             foreach (var entry in entries)
             {
-                var filter = Builders<T>.Filter.Eq("_id", id);
+                var filter = Builders<T>.Filter.Eq("_id", parsedObjectId);
                 var update = Builders<T>.Update.Set(entry.Key, entry.Value);
-                var updateResult = await _mongoCollection.UpdateOneAsync(filter, update);
+                var updateResult = await MongoCollection.UpdateOneAsync(filter, update);
 
                 if (updateResult.ModifiedCount != 1)
                 {
@@ -134,26 +152,37 @@ namespace MongoDB.HelpingHand.Implementation
         /// <summary>
         /// Full update of a document
         /// </summary>
-        /// <param name="id"></param>
+        /// <param name="objectId"></param>
         /// <param name="value"></param>
         /// <returns></returns>
-        public async Task<bool> Update(string id, T value)
+        public async Task<bool> Update(string objectId, T value)
         {
-            var filter = Builders<T>.Filter.Eq("_id", id);
-            var replaceResult = await _mongoCollection.ReplaceOneAsync(filter, value);
+            ObjectId parsedObjectId = ValidateObjectId(objectId);
+            var filter = Builders<T>.Filter.Eq("_id", parsedObjectId);
+            var replaceResult = await MongoCollection.ReplaceOneAsync(filter, value);
 
             return replaceResult.ModifiedCount == 1;
         }
 
-        ///// <summary>
-        ///// Delete a document
-        ///// </summary>
-        ///// <param name="id"></param>
-        ///// <param name="isObjectId">True to delete by ObjectId and false to delete by string ID.</param>
-        public async Task<bool> Delete(string id)
+        /// <summary>
+        /// Deletes all documents in the collection.
+        /// </summary>
+        /// <returns></returns>
+        public async Task<bool> DeleteAll()
         {
-            var filter = Builders<T>.Filter.Eq("_id", id);
-            var deleteResult = await _mongoCollection.DeleteOneAsync(filter);
+            var deleteResult = await MongoCollection.DeleteManyAsync(new BsonDocument());
+            return deleteResult.DeletedCount > 0;
+        }
+
+        /// <summary>
+        /// Delete a document
+        /// </summary>
+        /// <param name="objectId"></param>
+        public async Task<bool> Delete(string objectId)
+        {
+            ObjectId parsedObjectId = ValidateObjectId(objectId);
+            var filter = Builders<T>.Filter.Eq("_id", parsedObjectId);
+            var deleteResult = await MongoCollection.DeleteOneAsync(filter);
 
             return deleteResult.DeletedCount >= 1;
         }
@@ -162,7 +191,7 @@ namespace MongoDB.HelpingHand.Implementation
         {
             IList<T> listToReturn = new List<T>();
 
-            using (var cursor = await _mongoCollection.FindAsync(filterDefinition))
+            using (var cursor = await MongoCollection.FindAsync(filterDefinition))
             {
                 while (await cursor.MoveNextAsync())
                 {
@@ -181,7 +210,7 @@ namespace MongoDB.HelpingHand.Implementation
             bool found = false;
             T objectToReturn = default(T);
 
-            using (var cursor = await _mongoCollection.FindAsync(filterDefinition))
+            using (var cursor = await MongoCollection.FindAsync(filterDefinition))
             {
                 while (await cursor.MoveNextAsync())
                 {
@@ -222,7 +251,7 @@ namespace MongoDB.HelpingHand.Implementation
                     return Builders<T>.Filter.Lte(entry.Key, entry.Value);
                 case Operator.Regex:
                     return Builders<T>.Filter.Regex(new StringFieldDefinition<T>(entry.Key), 
-                        new BsonRegularExpression(new Regex(entry.Key, sensitive ? RegexOptions.IgnoreCase : RegexOptions.None)) );
+                        new BsonRegularExpression(new Regex(entry.Value.ToString(), !sensitive ? RegexOptions.IgnoreCase : RegexOptions.None)) );
                 case Operator.NotEquals:
                     return Builders<T>.Filter.Ne(entry.Key, entry.Value);
                 case Operator.Equals:
@@ -252,16 +281,56 @@ namespace MongoDB.HelpingHand.Implementation
 
         private void CheckOperatorIsAndOrOr(Operator operatorValue)
         {
-            if (operatorValue != Operator.And || operatorValue != Operator.Or)
+            if (operatorValue != Operator.And && operatorValue != Operator.Or)
             {
                 throw new ArgumentOutOfRangeException("Can only pass And or Or");
             }
+        }
+
+        private void CheckOperatorIsNotAndOrOrOrRegex(Operator operatorValue)
+        {
+            if (operatorValue != Operator.And && operatorValue != Operator.Or && operatorValue != Operator.Regex)
+            {
+                return;
+            }
+
+            if (operatorValue == Operator.Regex)
+            {
+                throw new ArgumentOutOfRangeException("For Regular Expressions. Use the Search method.");
+            }
+
+            throw new ArgumentOutOfRangeException("Cannot use And or Or. Must use Equals, Not Equals, Greater Than, Greater Than Equals, Less Than, Less Than Equals");
+        }
+
+        private void CheckOperatorIsNotAndOrOrOrRegex(IEnumerable<Operator> operators)
+        {
+            foreach (var operatorValue in operators)
+            {
+                CheckOperatorIsNotAndOrOrOrRegex(operatorValue);
+            }
+        }
+
+        private void CheckOperatorsAreValid(IList<BsonDocumentBuilder> entries, Operator operatorValue)
+        {
+            CheckOperatorIsAndOrOr(operatorValue);
+            CheckOperatorIsNotAndOrOrOrRegex(entries.Select(x => x.Operator));
         }
 
         private FilterDefinition<T> BuildFilterDefinitionWithOperator(IList<BsonDocumentBuilder> entries, Operator operatorValue)
         {
             IList<FilterDefinition<T>> filterDefinitions = entries.Select(entry => BuildFilterDefinition(entry)).ToList();
             return operatorValue == Operator.And ? Builders<T>.Filter.And(filterDefinitions) : Builders<T>.Filter.Or(filterDefinitions);
+        }
+
+        private ObjectId ValidateObjectId(string objectId)
+        {
+            ObjectId parsedObjectId;
+            if (!ObjectId.TryParse(objectId, out parsedObjectId))
+            {
+                throw new ArgumentException("Object Id does not parse");
+            }
+
+            return parsedObjectId;
         }
     }
 }
