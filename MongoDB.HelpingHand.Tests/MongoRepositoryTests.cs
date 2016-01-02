@@ -14,9 +14,15 @@ namespace MongoDB.HelpingHand.Tests
     [TestClass]
     public class MongoRepositoryTests
     {
-        private string _server = "DT003730:27017";
+        private string _server;
         private string _database = "local";
         private string _collection = "Customer";
+
+        [TestInitialize]
+        public void TestSetup()
+        {
+            _server = Environment.MachineName + ":27017";
+        }
 
         [Ignore]
         [TestMethod]
