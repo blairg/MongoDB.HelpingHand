@@ -24,22 +24,34 @@ namespace MongoDB.HelpingHand.Tests
             _server = Environment.MachineName + ":27017";
         }
 
-        [Ignore]
-        [TestMethod]
-        public void TestMethod1()
-        {
-            Dictionary<string, object> dictionary = new Dictionary<string, object>();
-            dictionary.Add("Key 1", "val 1");
-            dictionary.Add("Key 2", 2);
-            dictionary.Add("Key 3", 3.1);
-            dictionary.Add("Key 4", true);
-            dictionary.Add("Key 5", DateTime.Now);
 
-            foreach (var val in dictionary)
-            {
-                Console.WriteLine(val.Key + ":" + val.Value.GetType().Name);
-            }
+        #region public MongoRepository(string server, string databaseName, string collectionName)
+
+        [TestMethod]
+        [TestCategory("Integration")]
+        public void MongoRepository_Check_Constructor_Arguments_Are_Passed()
+        {
+            //arrange
+            
+            //act
+            Action emptyServer = () => new MongoRepository<Customer>(string.Empty, string.Empty, string.Empty);
+            Action nullServer = () => new MongoRepository<Customer>(null, string.Empty, string.Empty);
+            Action emptyDatabaseName = () => new MongoRepository<Customer>("DummyServer", string.Empty, string.Empty);
+            Action nullDatabaseName = () => new MongoRepository<Customer>("DummyServer", null, string.Empty);
+            Action emptyCollectionName = () => new MongoRepository<Customer>("DummyServer", "Dummy Database", string.Empty);
+            Action nullCollectionName = () => new MongoRepository<Customer>("DummyServer", "Dummy Database", string.Empty);
+
+            //assert
+            Check.ThatCode(emptyServer).Throws<ArgumentNullException>();
+            Check.ThatCode(nullServer).Throws<ArgumentNullException>();
+            Check.ThatCode(emptyDatabaseName).Throws<ArgumentNullException>();
+            Check.ThatCode(nullDatabaseName).Throws<ArgumentNullException>();
+            Check.ThatCode(emptyCollectionName).Throws<ArgumentNullException>();
+            Check.ThatCode(nullCollectionName).Throws<ArgumentNullException>();
         }
+
+        #endregion
+
 
         #region public async Task<IEnumerable<T>> GetAll()
 
@@ -118,6 +130,74 @@ namespace MongoDB.HelpingHand.Tests
 
         [TestMethod]
         [TestCategory("Integration")]
+        public void GetMatches_Should_Find_1_Record_With_Age_Greater_Than_30()
+        {
+            //arrange
+            MongoRepository<Customer> mongoRepository = new MongoRepository<Customer>(_server, _database, _collection);
+            var deleteResult = mongoRepository.DeleteAll().Result;
+
+            IList<Customer> customersToInsert = new List<Customer>
+            {
+                new Customer { Age = 25, DateOfBirth = DateTime.Now.AddYears(-25), Name = "John", Sex = Sex.Male},
+                new Customer { Age = 42, DateOfBirth = DateTime.Now.AddYears(-42), Name = "Mary", Sex = Sex.Female}
+            };
+
+            mongoRepository.InsertBatch(customersToInsert);
+
+            IList<BsonDocumentBuilder> bsonDocumentBuilders = new List<BsonDocumentBuilder>
+            {
+                new BsonDocumentBuilder { Key = "Age", Value = 30, Operator = Operator.GreaterThan}
+            };
+
+            //act
+            var customersFound = mongoRepository.GetMatches(bsonDocumentBuilders).Result.ToList();
+
+            //assert
+            Check.That(customersFound.Count).Equals(1);
+            Check.That(customersFound.Count(x => x.Name == customersToInsert[1].Name)).Equals(1);
+            Check.That(customersFound.Count(x => x.Age == customersToInsert[1].Age)).Equals(1);
+            Check.That(customersFound[0].DateOfBirth.ToLocalTime().ToShortTimeString()).Equals(customersToInsert[1].DateOfBirth.ToLocalTime().ToShortTimeString());
+            Check.That(customersFound.Count(x => x.Sex == customersToInsert[1].Sex)).Equals(1);
+
+            deleteResult = mongoRepository.DeleteAll().Result;
+        }
+
+        [TestMethod]
+        [TestCategory("Integration")]
+        public void GetMatches_Should_Find_1_Record_With_Age_Greater_Than_Equals_42()
+        {
+            //arrange
+            MongoRepository<Customer> mongoRepository = new MongoRepository<Customer>(_server, _database, _collection);
+            var deleteResult = mongoRepository.DeleteAll().Result;
+
+            IList<Customer> customersToInsert = new List<Customer>
+            {
+                new Customer { Age = 25, DateOfBirth = DateTime.Now.AddYears(-25), Name = "John", Sex = Sex.Male},
+                new Customer { Age = 42, DateOfBirth = DateTime.Now.AddYears(-42), Name = "Mary", Sex = Sex.Female}
+            };
+
+            mongoRepository.InsertBatch(customersToInsert);
+
+            IList<BsonDocumentBuilder> bsonDocumentBuilders = new List<BsonDocumentBuilder>
+            {
+                new BsonDocumentBuilder { Key = "Age", Value = 42, Operator = Operator.GreaterThanEquals}
+            };
+
+            //act
+            var customersFound = mongoRepository.GetMatches(bsonDocumentBuilders).Result.ToList();
+
+            //assert
+            Check.That(customersFound.Count).Equals(1);
+            Check.That(customersFound.Count(x => x.Name == customersToInsert[1].Name)).Equals(1);
+            Check.That(customersFound.Count(x => x.Age == customersToInsert[1].Age)).Equals(1);
+            Check.That(customersFound[0].DateOfBirth.ToLocalTime().ToShortTimeString()).Equals(customersToInsert[1].DateOfBirth.ToLocalTime().ToShortTimeString());
+            Check.That(customersFound.Count(x => x.Sex == customersToInsert[1].Sex)).Equals(1);
+
+            deleteResult = mongoRepository.DeleteAll().Result;
+        }
+
+        [TestMethod]
+        [TestCategory("Integration")]
         public void GetMatches_Should_Find_2_Record_With_Name_John_Or_Mary_Or_Age_Greater_Than_21()
         {
             //arrange
@@ -188,6 +268,36 @@ namespace MongoDB.HelpingHand.Tests
 
         [TestMethod]
         [TestCategory("Integration")]
+        public void GetMatches_Should_Find_0_Records_With_Age_Less_Than_23()
+        {
+            //arrange
+            MongoRepository<Customer> mongoRepository = new MongoRepository<Customer>(_server, _database, _collection);
+            var deleteResult = mongoRepository.DeleteAll().Result;
+
+            IList<Customer> customersToInsert = new List<Customer>
+            {
+                new Customer { Age = 25, DateOfBirth = DateTime.Now.AddYears(-25), Name = "John", Sex = Sex.Male},
+                new Customer { Age = 42, DateOfBirth = DateTime.Now.AddYears(-42), Name = "Mary", Sex = Sex.Female}
+            };
+
+            mongoRepository.InsertBatch(customersToInsert);
+
+            IList<BsonDocumentBuilder> bsonDocumentBuilders = new List<BsonDocumentBuilder>
+            {
+                new BsonDocumentBuilder { Key = "Age", Value = 23, Operator = Operator.LessThan}
+            };
+
+            //act
+            var customersFound = mongoRepository.GetMatches(bsonDocumentBuilders).Result.ToList();
+
+            //assert
+            Check.That(customersFound.Count).Equals(0);
+
+            deleteResult = mongoRepository.DeleteAll().Result;
+        }
+
+        [TestMethod]
+        [TestCategory("Integration")]
         public void GetMatches_Should_Find_1_Records_With_Sex_Not_Equal_To_Female()
         {
             //arrange
@@ -216,6 +326,96 @@ namespace MongoDB.HelpingHand.Tests
             Check.That(customersFound.Count(x => x.Age == customersToInsert[0].Age)).Equals(1);
             Check.That(customersFound[0].DateOfBirth.ToLocalTime().ToShortTimeString()).Equals(customersToInsert[0].DateOfBirth.ToLocalTime().ToShortTimeString());
             Check.That(customersFound.Count(x => x.Sex == customersToInsert[0].Sex)).Equals(1);
+
+            deleteResult = mongoRepository.DeleteAll().Result;
+        }
+
+        [TestMethod]
+        [TestCategory("Integration")]
+        public void GetMatches_Should_Throw_Exception_As_Only_And_Or_Or_Can_Be_Used()
+        {
+            //arrange
+            MongoRepository<Customer> mongoRepository = new MongoRepository<Customer>(_server, _database, _collection);
+            var deleteResult = mongoRepository.DeleteAll().Result;
+
+            IList<Customer> customersToInsert = new List<Customer>
+            {
+                new Customer { Age = 25, DateOfBirth = DateTime.Now.AddYears(-25), Name = "John", Sex = Sex.Male},
+                new Customer { Age = 42, DateOfBirth = DateTime.Now.AddYears(-42), Name = "Mary", Sex = Sex.Female}
+            };
+
+            mongoRepository.InsertBatch(customersToInsert);
+
+            IList<BsonDocumentBuilder> bsonDocumentBuilders = new List<BsonDocumentBuilder>
+            {
+                new BsonDocumentBuilder { Key = "Age", Value = 23, Operator = Operator.LessThanEquals}
+            };
+
+            //act
+            Action action = () => mongoRepository.GetMatches(bsonDocumentBuilders, Operator.Equals).Result.ToList();
+
+            //assert
+            Check.ThatCode(action).ThrowsAny();
+
+            deleteResult = mongoRepository.DeleteAll().Result;
+        }
+
+        [TestMethod]
+        [TestCategory("Integration")]
+        public void GetMatches_Should_Throw_Exception_As_Regex_Cannot_Be_Used_By_This_Method()
+        {
+            //arrange
+            MongoRepository<Customer> mongoRepository = new MongoRepository<Customer>(_server, _database, _collection);
+            var deleteResult = mongoRepository.DeleteAll().Result;
+
+            IList<Customer> customersToInsert = new List<Customer>
+            {
+                new Customer { Age = 25, DateOfBirth = DateTime.Now.AddYears(-25), Name = "John", Sex = Sex.Male},
+                new Customer { Age = 42, DateOfBirth = DateTime.Now.AddYears(-42), Name = "Mary", Sex = Sex.Female}
+            };
+
+            mongoRepository.InsertBatch(customersToInsert);
+
+            IList<BsonDocumentBuilder> bsonDocumentBuilders = new List<BsonDocumentBuilder>
+            {
+                new BsonDocumentBuilder { Key = "Age", Value = 23, Operator = Operator.Regex}
+            };
+
+            //act
+            Action action = () => mongoRepository.GetMatches(bsonDocumentBuilders).Result.ToList();
+
+            //assert
+            Check.ThatCode(action).ThrowsAny();
+
+            deleteResult = mongoRepository.DeleteAll().Result;
+        }
+
+        [TestMethod]
+        [TestCategory("Integration")]
+        public void GetMatches_Should_Throw_Exception_As_And_Cannot_Be_Used_As_The_Builder()
+        {
+            //arrange
+            MongoRepository<Customer> mongoRepository = new MongoRepository<Customer>(_server, _database, _collection);
+            var deleteResult = mongoRepository.DeleteAll().Result;
+
+            IList<Customer> customersToInsert = new List<Customer>
+            {
+                new Customer { Age = 25, DateOfBirth = DateTime.Now.AddYears(-25), Name = "John", Sex = Sex.Male},
+                new Customer { Age = 42, DateOfBirth = DateTime.Now.AddYears(-42), Name = "Mary", Sex = Sex.Female}
+            };
+
+            mongoRepository.InsertBatch(customersToInsert);
+
+            IList<BsonDocumentBuilder> bsonDocumentBuilders = new List<BsonDocumentBuilder>
+            {
+                new BsonDocumentBuilder { Key = "Age", Value = 23, Operator = Operator.And}
+            };
+
+            //act
+            Action action = () => mongoRepository.GetMatches(bsonDocumentBuilders).Result.ToList();
+
+            //assert
+            Check.ThatCode(action).ThrowsAny();
 
             deleteResult = mongoRepository.DeleteAll().Result;
         }
@@ -577,6 +777,49 @@ namespace MongoDB.HelpingHand.Tests
             deleteResult = mongoRepository.DeleteAll().Result;
         }
 
+        [TestMethod]
+        [TestCategory("Integration")]
+        public void Update_Should_Not_Update_As_ObjectId_Is_Invalid()
+        {
+            //arrange
+            MongoRepository<Customer> mongoRepository = new MongoRepository<Customer>(_server, _database, _collection);
+            var deleteResult = mongoRepository.DeleteAll().Result;
+
+            IList<Customer> customersToInsert = new List<Customer>
+            {
+                new Customer { Age = 25, DateOfBirth = DateTime.Now.AddYears(-25), Name = "James", Sex = Sex.Male},
+                new Customer { Age = 33, DateOfBirth = DateTime.Now.AddYears(-33), Name = "James", Sex = Sex.Male},
+                new Customer { Age = 42, DateOfBirth = DateTime.Now.AddYears(-42), Name = "Mary", Sex = Sex.Female}
+            };
+
+            mongoRepository.InsertBatch(customersToInsert);
+
+            IList<BsonDocumentBuilder> bsonDocumentBuilders = new List<BsonDocumentBuilder>
+            {
+                new BsonDocumentBuilder { Key = "Name", Value = "Mary", Operator = Operator.Equals }
+            };
+
+            Customer customerInserted = mongoRepository.GetFirst(bsonDocumentBuilders).Result;
+
+            IList<BsonDocumentBuilder> updateBsonDocumentBuilders = new List<BsonDocumentBuilder>
+            {
+                new BsonDocumentBuilder { Key = "Name", Value = "Sarah" }
+            };
+
+            string invalidId = customerInserted.Id.ToString().Replace("a", "1").Replace("b", "2").Replace("c", "3")
+                .Replace("1", "a").Replace("2", "b").Replace("3", "c");
+                                                             //.Replace("4", "d").Replace("5", "e").Replace("6", "f")
+                                                             //.Replace("7", "g").Replace("8", "h").Replace("9", "i");
+
+            //act
+            bool updated = mongoRepository.Update(invalidId, updateBsonDocumentBuilders).Result;
+
+            //assert
+            Check.That(updated).IsFalse();
+
+            deleteResult = mongoRepository.DeleteAll().Result;
+        }
+
         #endregion
 
 
@@ -693,7 +936,7 @@ namespace MongoDB.HelpingHand.Tests
             int age = 0;
             customersToInsert.Add(new Customer { Age = 41, DateOfBirth = DateTime.Now.AddYears(-41), Name = "Joe Bloggs", Sex = Sex.Male });
 
-            for (int i = 0; i < 250000; i++)
+            for (int i = 0; i < 350000; i++)
             {
                 Random random = new Random();
                 age = random.Next(10, 99);
@@ -723,8 +966,8 @@ namespace MongoDB.HelpingHand.Tests
             sw.Reset();
             sw.Start();
             customerFound = mongoRepository.GetFirst(bsonDocumentBuilders).Result;
-            Check.That(customerFound).IsNotNull();
             sw.Stop();
+            Check.That(customerFound).IsNotNull();
             double elapsedAfterIndex = sw.ElapsedMilliseconds;
 
             Check.That(elapsedBeforeIndex).IsGreaterThan(elapsedAfterIndex);
