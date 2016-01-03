@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>MongoDB.HelpingHand</id>
+    <version>1.0.0.0</version>
+    <title>MongoDB.HelpingHand</title>
+    <authors>Blair Garrett</authors>
+    <owners>Blair Garrett</owners>
+    <licenseUrl>https://bitbucket.org/blair_garrett/mongodb.helpinghand</licenseUrl>
+    <projectUrl>https://bitbucket.org/blair_garrett/mongodb.helpinghand</projectUrl>
+    <iconUrl>https://bitbucket.org/blair_garrett/mongodb.helpinghand</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A MongoDB helper file. Should make doing the basics slightly easier.</description>
+    <releaseNotes>Initial release into the wild.</releaseNotes>
+    <copyright>Copyright 2016</copyright>
+    <tags>C# MongoDB NoSQL .NET Database Helper Utility</tags>
+	<dependencies>
+	  <dependency id="MongoDB.Bson" version="2.2.0" />
+	  <dependency id="MongoDB.Driver" version="2.2.0" />
+	  <dependency id="MongoDB.Driver.Core" version="2.2.0" />
+    </dependencies>
+  </metadata>
+</package>
