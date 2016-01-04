@@ -72,12 +72,6 @@
     <Compile Include="Sex.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\MongoDB.HelpingHand\MongoDB.HelpingHand.csproj">
-      <Project>{242CF7CE-DA5C-4B18-9AC4-AC14BCAA3B69}</Project>
-      <Name>MongoDB.HelpingHand</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <Choose>
