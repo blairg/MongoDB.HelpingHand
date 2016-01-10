@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using MongoDB.Bson;
@@ -190,6 +191,15 @@ namespace MongoDB.HelpingHand.Implementation
             return deleteResult.DeletedCount >= 1;
         }
 
+        public async Task<string> CreateIndex(string columnName)
+        {
+            CheckObjectContainsProperty(columnName);
+            var keys = Builders<T>.IndexKeys.Ascending(columnName);
+            var index = await MongoCollection.Indexes.CreateOneAsync(keys);
+
+            return index;
+        }
+
         private async Task<IEnumerable<T>> GetDocuments(FilterDefinition<T> filterDefinition)
         {
             IList<T> listToReturn = new List<T>();
@@ -241,6 +251,7 @@ namespace MongoDB.HelpingHand.Implementation
         /// <returns></returns>
         private FilterDefinition<T> BuildFilterDefinition(BsonDocumentBuilder entry, bool sensitive = false)
         {
+            CheckObjectContainsProperty(entry.Key);
             FilterDefinition<T> filterDefinition;
 
             switch (entry.Operator)
@@ -331,6 +342,21 @@ namespace MongoDB.HelpingHand.Implementation
             }
 
             return parsedObjectId;
+        }
+
+        private bool CheckObjectContainsProperty(string propertyName)
+        {
+            var propertyInfos = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static |
+                                                        BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+
+            bool columnFound = propertyInfos.Count(x => x.Name == propertyName) > 0;
+
+            if (!columnFound)
+            {
+                throw new ArgumentException($"{propertyName} not found on Object of Type:{typeof(T).Name}");
+            }
+
+            return true;
         }
     }
 }

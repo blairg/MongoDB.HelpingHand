@@ -98,5 +98,12 @@ namespace MongoDB.HelpingHand
         /// </summary>
         /// <param name="objectId"></param>
         Task<bool> Delete(string objectId);
+
+        /// <summary>
+        /// Creates an index on a document.
+        /// </summary>
+        /// <param name="columnName">Column to create index on</param>
+        /// <returns></returns>
+        Task<string> CreateIndex(string columnName);
     }
 }

@@ -74,6 +74,12 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MongoDB.HelpingHand\MongoDB.HelpingHand.csproj">
+      <Project>{242cf7ce-da5c-4b18-9ac4-ac14bcaa3b69}</Project>
+      <Name>MongoDB.HelpingHand</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
       <ItemGroup>

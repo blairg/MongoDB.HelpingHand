@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.HelpingHand.Entities;
 using MongoDB.HelpingHand.Implementation;
 using NFluent;
+using System.Linq;
 
 namespace MongoDB.HelpingHand.Tests
 {
@@ -920,6 +920,66 @@ namespace MongoDB.HelpingHand.Tests
         }
 
         #endregion
+
+
+        #region public async Task<string> CreateIndex(string columnName)
+
+        [TestMethod]
+        [TestCategory("Integration")]
+        public void CreateIndex_Should_Create_Index_As_Column_Exists()
+        {
+            //arrange
+            MongoRepository<Customer> mongoRepository = new MongoRepository<Customer>(_server, _database, _collection);
+            var deleteResult = mongoRepository.DeleteAll().Result;
+
+            IList<Customer> customersToInsert = new List<Customer>
+            {
+                new Customer { Age = 25, DateOfBirth = DateTime.Now.AddYears(-25), Name = "Bob", Sex = Sex.Male},
+                new Customer { Age = 33, DateOfBirth = DateTime.Now.AddYears(-33), Name = "James", Sex = Sex.Male},
+                new Customer { Age = 42, DateOfBirth = DateTime.Now.AddYears(-42), Name = "Mary", Sex = Sex.Female}
+            };
+
+            mongoRepository.InsertBatch(customersToInsert);
+
+            //act
+            string index = mongoRepository.CreateIndex("Name").Result;
+
+            //assert
+            Check.That(string.IsNullOrEmpty(index)).IsFalse();
+            
+            deleteResult = mongoRepository.DeleteAll().Result;
+        }
+
+        [TestMethod]
+        [TestCategory("Integration")]
+        public void CreateIndex_Should_Not_Create_Index_As_Column_Does_Not_Exist()
+        {
+            //arrange
+            MongoRepository<Customer> mongoRepository = new MongoRepository<Customer>(_server, _database, _collection);
+            var deleteResult = mongoRepository.DeleteAll().Result;
+
+            IList<Customer> customersToInsert = new List<Customer>
+            {
+                new Customer { Age = 25, DateOfBirth = DateTime.Now.AddYears(-25), Name = "Bob", Sex = Sex.Male},
+                new Customer { Age = 33, DateOfBirth = DateTime.Now.AddYears(-33), Name = "James", Sex = Sex.Male},
+                new Customer { Age = 42, DateOfBirth = DateTime.Now.AddYears(-42), Name = "Mary", Sex = Sex.Female}
+            };
+
+            mongoRepository.InsertBatch(customersToInsert);
+            string columnName = "InvalidColumn";
+
+            //act
+
+            //assert
+            Check.ThatAsyncCode(async () => await mongoRepository.CreateIndex(columnName))
+                .Throws<ArgumentException>()
+                .WithMessage($"{columnName} not found on Object of Type:{typeof(Customer).Name}");
+
+            deleteResult = mongoRepository.DeleteAll().Result;
+        }
+
+        #endregion
+
 
 
         #region public IMongoCollection<T> MongoCollection { get; set; }
