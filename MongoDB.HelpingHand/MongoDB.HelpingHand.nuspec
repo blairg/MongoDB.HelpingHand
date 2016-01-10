@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>MongoDB.HelpingHand</id>
-    <version>1.0.0.0</version>
+    <version>1.0.0.1</version>
     <title>MongoDB.HelpingHand</title>
     <authors>Blair Garrett</authors>
     <owners>Blair Garrett</owners>
@@ -11,7 +11,7 @@
     <iconUrl>https://bitbucket.org/blair_garrett/mongodb.helpinghand</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>A MongoDB helper file. Should make doing the basics slightly easier.</description>
-    <releaseNotes>Initial release into the wild.</releaseNotes>
+    <releaseNotes>Added a method to allow for creating indexes.</releaseNotes>
     <copyright>Copyright 2016</copyright>
     <tags>C# MongoDB NoSQL .NET Database Helper Utility</tags>
 	<dependencies>
